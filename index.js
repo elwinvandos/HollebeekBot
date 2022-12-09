@@ -36,17 +36,17 @@ client.on('ready', () => {
     const everyTuesdayAt10am = "0 10 * * TUE";
     const everyFirstDayOfMonth = "0 10 1 * *";
     const everyWednesdayAt10am = "0 10 * * MON";
-    const everyFridayAt10Am = "0 10 * * FRI";
+    const everyFridayAt10Am = "30 10 * * FRI";
 
     var keukenJobs = new CronJob(everyDayAt10am, distributeKeukenTaken, null, false, 'Europe/Brussels');
     keukenJobs.start();
-    
+
     var HanddoekenJob = new CronJob(everyTuesdayAt10am, distributeHanddoekenTaak, null, false, 'Europe/Brussels');
     HanddoekenJob.start();
-    
+
     var glasJob = new CronJob(everyFirstDayOfMonth, distributeGlas, null, false, 'Europe/Brussels');
     glasJob.start();
-    
+
     var gftJob = new CronJob(everyWednesdayAt10am, distributeGft, null, false, 'Europe/Brussels');
     gftJob.start();
 
@@ -56,27 +56,29 @@ client.on('ready', () => {
 
 async function askKaterDag() {
     let row = new ActionRowBuilder()
-    .addComponents(
-        new ButtonBuilder()
-            .setCustomId(katerButtonSat)
-            .setLabel('Zaterdag')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId(katerButtonSun)
-            .setLabel('Zondag')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId(katerButtonBoth)
-            .setLabel('Beide')
-            .setStyle(ButtonStyle.Primary),
-    );
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId(katerButtonSat)
+                .setLabel('Zaterdag')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId(katerButtonSun)
+                .setLabel('Zondag')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId(katerButtonBoth)
+                .setLabel('Beide')
+                .setStyle(ButtonStyle.Primary),
+        );
 
-    await channel.send({content: `What day are we too naar de kloten om te koken deze week?`, components: [row]});
+    await channel.send({ content: `What day are we too naar de kloten om te koken deze week?`, components: [row] });
 
     // mega convoluted manier om te zorgen da ik kan reageren op klik actie en knoppen updaten
     const filter = i => i.customId === katerButtonSat || i.customId === katerButtonSun;
     const collector = channel.createMessageComponentCollector({ filter, time: 28800000 });
+    console.log("collector created");
     collector.on('collect', async i => {
+        console.log("collector started");
         let newActionRows = i.message.components.map(oldActionRow => {
 
             updatedActionRow = new ActionRowBuilder();
@@ -101,7 +103,7 @@ async function askKaterDag() {
             skipSun = true;
         }
 
-        await i.update({ content: `Mercikes om te klikken ${i.user}`, components: newActionRows});
+        await i.update({ content: `Mercikes om te klikken ${i.user}`, components: newActionRows });
     });
 }
 
@@ -119,8 +121,12 @@ async function distributeKeukenTaken() {
         return;
     }
 
+    console.log("datechecks passed");
+
     var indexAfwasser = parseInt(fileSystem.readFileSync('./indexes/afwasser.txt'));
     var indexSousChef = parseInt(fileSystem.readFileSync('./indexes/souschef.txt'));
+
+    console.log(`indexes parsed: afwasser = ${indexAfwasser} and sousChef = ${indexSousChef}`);
 
     if (members[indexAfwasser].name == "Arren") {
         indexAfwasser++;
@@ -133,10 +139,14 @@ async function distributeKeukenTaken() {
     var afwasser = await getUser(indexAfwasser);
     var sousChef = await getUser(indexSousChef);
 
+    console.log("users fetched");
+
     await channel.send({ content: `${afwasser} moet vandaag afwassen, en ${sousChef} moet Arren helpen met koken.` });
 
     indexAfwasser++;
     indexSousChef++;
+
+    console.log("message sent and indexes increased");
 
     if (indexAfwasser >= members.length) {
         indexAfwasser = 0;
@@ -148,6 +158,8 @@ async function distributeKeukenTaken() {
 
     fileSystem.writeFileSync('./indexes/afwasser.txt', indexAfwasser.toString());
     fileSystem.writeFileSync('./indexes/souschef.txt', indexSousChef.toString());
+
+    console.log("indexes written away");
 }
 
 async function distributeHanddoekenTaak() {
